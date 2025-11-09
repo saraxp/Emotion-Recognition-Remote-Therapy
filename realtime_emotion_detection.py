@@ -5,9 +5,17 @@ from collections import deque
 import datetime
 import json
 import os
+import config
+from huggingface_hub import hf_hub_download
 
 # Load the trained model
-model = keras.models.load_model('emotion_model_best.h5')
+model_path = hf_hub_download(
+    repo_id=config.HF_REPO_ID,
+    filename=config.HF_MODEL_FILENAME,
+    repo_type="model",
+    token=None
+)
+model = keras.models.load_model(model_path)
 
 # Emotion labels
 emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']

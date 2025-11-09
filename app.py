@@ -14,6 +14,7 @@ import json
 import os
 from threading import Lock
 from functools import wraps
+from huggingface_hub import hf_hub_download
 
 # Import configuration
 import config
@@ -40,10 +41,16 @@ db.create_default_users()
 
 # Load emotion model
 try:
-    model = keras.models.load_model("emotion_model_best.h5")
-    print("✅ Model loaded successfully")
+    model_path = hf_hub_download(
+        repo_id=config.HF_REPO_ID,
+        filename=config.HF_MODEL_FILENAME,
+        repo_type="model",      # important for model repos
+        token=None              # public = no token
+    )
+    model = keras.models.load_model(model_path)
+    print("✅ Model loaded from Hugging Face")
 except Exception as e:
-    print(f"⚠️  Model not found or failed to load: {e}")
+    print(f"⚠️  Failed to load model from HF: {e}")
     model = None
 
 emotion_labels = ["Angry", "Disgust", "Fear", "Happy", "Sad", "Surprise", "Neutral"]

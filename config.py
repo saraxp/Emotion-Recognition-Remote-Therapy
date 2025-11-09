@@ -19,7 +19,9 @@ HOST = '0.0.0.0'
 PORT = int(os.getenv("PORT", "5000"))  # Read from environment
 
 # Model Settings
-MODEL_PATH = 'emotion_model_best.h5'
+# Hugging Face model (public)
+HF_REPO_ID = "saraxp/emotion_model_best.h5"  # <user>/<repo>
+HF_MODEL_FILENAME = "emotion_model_best.h5"  # file inside the repo
 EMOTION_LABELS = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
 
 # Session Settings
@@ -88,42 +90,6 @@ def validate_config():
     
     return len(issues) == 0
 
-def print_config_status():
-    """Print current configuration status"""
-    print("\n" + "="*70)
-    print("CONFIGURATION STATUS")
-    print("="*70)
-    
-    # Flask settings
-    print("\n📦 Flask Settings:")
-    print(f"  DEBUG: {DEBUG}")
-    print(f"  HOST: {HOST}")
-    print(f"  PORT: {PORT}")
-    print(f"  SECRET_KEY: {'✅ Set' if FLASK_SECRET_KEY else '❌ Not set'}")
-    
-    # Model settings
-    print("\n🤖 Model Settings:")
-    print(f"  MODEL_PATH: {MODEL_PATH}")
-    print(f"  EMOTION_LABELS: {len(EMOTION_LABELS)} labels")
-    print(f"  EMOTION_WINDOW_SIZE: {EMOTION_WINDOW_SIZE}")
-    
-    # API Keys
-    print("\n🔑 API Keys:")
-    print(f"  GEMINI_API_KEY: {'✅ Set' if GEMINI_API_KEY else '❌ Not set'}")
-    print(f"  GEMINI_MODEL: {GEMINI_MODEL}")
-    
-    # Cloud Storage
-    print("\n☁️  Cloud Storage:")
-    print(f"  USE_CLOUD_STORAGE: {USE_CLOUD_STORAGE}")
-    print(f"  CLOUD_PROVIDER: {CLOUD_PROVIDER}")
-    print(f"  FIREBASE_CREDENTIALS: {'✅ Set' if FIREBASE_CREDENTIALS else '⚠️  Not set'}")
-    
-    # Session settings
-    print("\n💾 Session Settings:")
-    print(f"  SESSION_DATA_DIR: {SESSION_DATA_DIR}")
-    print(f"  DATA_RETENTION_DAYS: {DATA_RETENTION_DAYS}")
-    
-    print("="*70 + "\n")
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -138,5 +104,4 @@ def is_gemini_configured():
 # ==================== AUTO-RUN ON IMPORT ====================
 
 if __name__ == "__main__":
-    print_config_status()
     validate_config()
