@@ -1,0 +1,47 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.log
+*.sqlite3
+*.db
+*.h5
+*.DS_Store
+
+# --- Virtual environments ---
+venv/
+emotion-venv/
+.venv/
+
+# --- Environment / credentials ---
+.env
+serviceAccountKey.json
+session_data.json
+FER2013.zip
+FER2013.csv
+FER2013/
+training_history.png
+
+# --- Session / runtime data ---
+session_data/
+session_*.json
+therapy_sessions.db
+*.cache
+*.tmp
+
+# --- Model files (optional if you plan to load from Firebase or remote) ---
+emotion_model_final.h5
+emotion_model_best.h5
+models/
+
+# --- Vercel build & cache ---
+.vercel/
+.vscode/
+.idea/
+__MACOSX/
+
+# --- System files ---
+Thumbs.db
+desktop.ini

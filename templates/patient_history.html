@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Therapy Sessions</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f3f4f6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px 40px;
+        }
+
+        h1 {
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: #444;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 50px;
+            color: #888;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🧠 My Therapy Session History</h1>
+    <p>Welcome, {{ user.full_name }}</p>
+</header>
+
+<div class="container">
+    {% if sessions and sessions|length > 0 %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Duration</th>
+                    <th>Emotions Detected</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sessions %}
+                    <tr>
+                        <td>{{ s.start_time[:10] if s.start_time else 'N/A' }}</td>
+                        <td>{{ (s.duration_seconds / 60)|round(1) if s.duration_seconds else 0 }} min</td>
+                        <td>{{ s.total_emotions_detected or 0 }}</td>
+                        <td>{{ 'Completed' if s.end_time else 'Ongoing' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty">
+            <h3>No previous sessions found</h3>
+            <p>Start a new session to begin tracking your emotions.</p>
+        </div>
+    {% endif %}
+
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="/patient_session" class="btn">← Back to Session</a>
+    </div>
+</div>
+
+</body>
+</html>

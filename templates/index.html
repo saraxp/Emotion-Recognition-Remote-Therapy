@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Recognition - Remote Therapy</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            padding: 30px;
+        }
+        
+        .video-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        #video-feed {
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .btn-start {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-start:hover {
+            background: #059669;
+        }
+        
+        .btn-stop {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-stop:hover {
+            background: #dc2626;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        input[type="text"] {
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .stats-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .emotion-display {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .emotion-display .emotion-text {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        
+        .emotion-display .confidence {
+            font-size: 1.2em;
+            color: #6b7280;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-item .label {
+            font-size: 0.9em;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+        
+        .stat-item .value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        #emotionChart {
+            max-height: 300px;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .status.recording {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .status.stopped {
+            background: #e5e7eb;
+            color: #6b7280;
+        }
+        
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧠 Emotion Recognition System</h1>
+            <p>Remote Therapy Session Monitoring</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="video-section">
+                <h3>Live Video Feed</h3>
+                <img id="video-feed" src="{{ url_for('video_feed') }}" alt="Video Feed">
+                
+                <div class="controls">
+                    <input type="text" id="patient-id" placeholder="Enter Patient ID">
+                    <button class="btn btn-start" id="start-btn" onclick="startSession()">
+                        Start Session
+                    </button>
+                    <button class="btn btn-stop" id="stop-btn" onclick="stopSession()" disabled>
+                        Stop Session
+                    </button>
+                </div>
+            </div>
+            
+            <div class="stats-section">
+                <div class="card">
+                    <h3>Session Status <span id="status" class="status stopped">Not Recording</span></h3>
+                    <div class="emotion-display">
+                        <div class="label">Current Emotion</div>
+                        <div class="emotion-text" id="current-emotion">--</div>
+                        <div class="confidence" id="confidence">--</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>Session Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="label">Total Detections</div>
+                            <div class="value" id="total-detections">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="label">Duration</div>
+                            <div class="value" id="duration">0s</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>Emotion Distribution</h3>
+                    <canvas id="emotionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let sessionActive = false;
+        let updateInterval = null;
+        let chart = null;
+        
+        // Initialize Chart
+        const ctx = document.getElementById('emotionChart').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral'],
+                datasets: [{
+                    label: 'Percentage (%)',
+                    data: [0, 0, 0, 0, 0, 0, 0],
+                    backgroundColor: [
+                        '#ef4444',
+                        '#84cc16',
+                        '#8b5cf6',
+                        '#fbbf24',
+                        '#3b82f6',
+                        '#f97316',
+                        '#6b7280'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+        
+        async function startSession() {
+            const patientId = document.getElementById('patient-id').value;
+            if (!patientId) {
+                alert('Please enter a Patient ID');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/start_session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ patient_id: patientId })
+                });
+                
+                const data = await response.json();
+                if (data.status === 'success') {
+                    sessionActive = true;
+                    document.getElementById('start-btn').disabled = true;
+                    document.getElementById('stop-btn').disabled = false;
+                    document.getElementById('patient-id').disabled = true;
+                    document.getElementById('status').textContent = 'Recording';
+                    document.getElementById('status').className = 'status recording';
+                    
+                    // Start updating stats
+                    updateInterval = setInterval(updateStats, 1000);
+                    alert(`Session started: ${data.session_id}`);
+                }
+            } catch (error) {
+                console.error('Error starting session:', error);
+                alert('Failed to start session');
+            }
+        }
+        
+        async function stopSession() {
+            try {
+                const response = await fetch('/stop_session', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                if (data.status === 'success') {
+                    sessionActive = false;
+                    document.getElementById('start-btn').disabled = false;
+                    document.getElementById('stop-btn').disabled = true;
+                    document.getElementById('patient-id').disabled = false;
+                    document.getElementById('status').textContent = 'Not Recording';
+                    document.getElementById('status').className = 'status stopped';
+                    
+                    // Stop updating stats
+                    clearInterval(updateInterval);
+                    alert(`Session saved: ${data.filename}\nTotal emotions detected: ${data.total_emotions}`);
+                }
+            } catch (error) {
+                console.error('Error stopping session:', error);
+                alert('Failed to stop session');
+            }
+        }
+        
+        async function updateStats() {
+            try {
+                // Update current emotion
+                const emotionResponse = await fetch('/current_emotion');
+                const emotionData = await emotionResponse.json();
+                
+                if (emotionData.emotion && emotionData.emotion !== 'None') {
+                    document.getElementById('current-emotion').textContent = emotionData.emotion;
+                    document.getElementById('confidence').textContent = 
+                        `Confidence: ${(emotionData.confidence * 100).toFixed(1)}%`;
+                }
+                
+                // Update session stats
+                const statsResponse = await fetch('/session_stats');
+                const statsData = await statsResponse.json();
+                
+                if (!statsData.error) {
+                    document.getElementById('total-detections').textContent = statsData.total_detections;
+                    document.getElementById('duration').textContent = 
+                        `${Math.floor(statsData.session_duration)}s`;
+                    
+                    // Update chart
+                    const emotionPercentages = statsData.emotion_percentages;
+                    const chartData = [
+                        emotionPercentages['Angry'] || 0,
+                        emotionPercentages['Disgust'] || 0,
+                        emotionPercentages['Fear'] || 0,
+                        emotionPercentages['Happy'] || 0,
+                        emotionPercentages['Sad'] || 0,
+                        emotionPercentages['Surprise'] || 0,
+                        emotionPercentages['Neutral'] || 0
+                    ];
+                    
+                    chart.data.datasets[0].data = chartData;
+                    chart.update();
+                }
+            } catch (error) {
+                console.error('Error updating stats:', error);
+            }
+        }
+        
+        // Update current emotion even when not recording (for preview)
+        setInterval(async () => {
+            if (!sessionActive) {
+                try {
+                    const response = await fetch('/current_emotion');
+                    const data = await response.json();
+                    if (data.emotion && data.emotion !== 'None') {
+                        document.getElementById('current-emotion').textContent = data.emotion;
+                        document.getElementById('confidence').textContent = 
+                            `Confidence: ${(data.confidence * 100).toFixed(1)}%`;
+                    }
+                } catch (error) {
+                    console.error('Error fetching current emotion:', error);
+                }
+            }
+        }, 2000);
+    </script>
+</body>
+</html>
