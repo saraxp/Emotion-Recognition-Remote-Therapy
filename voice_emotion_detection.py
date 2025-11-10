@@ -4,7 +4,7 @@ This module can be integrated with the main application for voice tone analysis
 """
 
 import numpy as np
-import librosa
+import librosa # type: ignore
 import pyaudio
 import wave
 from collections import deque
@@ -19,7 +19,7 @@ class VoiceEmotionAnalyzer:
         """
         self.model = None
         if model_path and os.path.exists(model_path):
-            from tensorflow import keras
+            from tensorflow import keras # type: ignore
             self.model = keras.models.load_model(model_path)
         
         self.emotion_window = deque(maxlen=5)

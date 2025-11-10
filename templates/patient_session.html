@@ -6,7 +6,6 @@
     <title>Therapy Session - {{ user.full_name }}</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* --- Same CSS as before (unchanged for brevity) --- */
         *{margin:0;padding:0;box-sizing:border-box;}
         body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px;}
         .container{max-width:1400px;margin:0 auto;background:white;border-radius:15px;box-shadow:0 10px 40px rgba(0,0,0,0.2);overflow:hidden;}
@@ -18,15 +17,17 @@
         .main-content{display:grid;grid-template-columns:2fr 1fr;gap:20px;padding:30px;}
         .video-section{background:#f8f9fa;border-radius:10px;padding:20px;}
         .video-section h2{color:#667eea;margin-bottom:15px;}
-        #video-feed{width:100%;border-radius:10px;box-shadow:0 5px 15px rgba(0,0,0,0.1);background:#000;}
+        #video-container{position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden;}
+        #video-feed{width:100%;display:block;transform:scaleX(-1);}
+        #canvas{display:none;}
+        .face-box{position:absolute;border:3px solid #10b981;border-radius:8px;pointer-events:none;}
+        .emotion-label{position:absolute;background:rgba(16,185,129,0.9);color:white;padding:5px 10px;border-radius:4px;font-size:14px;font-weight:600;top:-30px;left:0;}
         .controls{margin-top:20px;display:flex;gap:15px;flex-wrap:wrap;}
         .btn{padding:14px 28px;border:none;border-radius:10px;font-size:16px;cursor:pointer;transition:all 0.3s;font-weight:600;display:flex;align-items:center;gap:8px;}
         .btn-start{background:#10b981;color:white;flex:1;}
         .btn-start:hover{background:#059669;transform:translateY(-2px);}
         .btn-stop{background:#ef4444;color:white;flex:1;}
         .btn-stop:hover{background:#dc2626;transform:translateY(-2px);}
-        .btn-history{background:#667eea;color:white;}
-        .btn-history:hover{background:#5568d3;}
         .btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important;}
         .stats-section{display:flex;flex-direction:column;gap:20px;}
         .card{background:#f8f9fa;border-radius:10px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.05);}
@@ -46,7 +47,7 @@
         #emotionChart{max-height:300px;}
         .alert{padding:15px;border-radius:8px;margin-bottom:20px;display:none;}
         .alert-success{background:#d1fae5;color:#065f46;border:1px solid #10b981;}
-        .alert-info{background:#dbeafe;color:#1e40af;border:1px solid #3b82f6;}
+        .camera-error{background:#fee2e2;color:#dc2626;padding:20px;border-radius:8px;text-align:center;}
         @media(max-width:968px){.main-content{grid-template-columns:1fr;}}
     </style>
 </head>
@@ -69,7 +70,10 @@
             <div id="alert-container"></div>
 
             <h2>Live Video Feed</h2>
-            <img id="video-feed" src="{{ url_for('video_feed') }}" alt="Video Feed">
+            <div id="video-container">
+                <video id="video-feed" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+            </div>
 
             <div class="controls">
                 <button class="btn btn-start" id="start-btn" onclick="startSession()">▶️ Start Session</button>
@@ -79,7 +83,7 @@
             <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px;">
                 <p style="color: #6b7280; font-size: 0.95em;">
                     💡 <strong>How it works:</strong> Click "Start Session" to begin monitoring your emotions. 
-                    The system will detect and analyze your facial expressions in real-time. 
+                    Allow camera access when prompted. The system will detect and analyze your facial expressions in real-time. 
                     When finished, click "Stop Session" to generate an AI summary.
                 </p>
             </div>
@@ -127,12 +131,15 @@
     let updateInterval = null;
     let chart = null;
     let sessionStartTime = null;
+    let video = document.getElementById('video-feed');
+    let canvas = document.getElementById('canvas');
+    let ctx = canvas.getContext('2d');
+    let cameraStream = null;
+    let processingInterval = null;
 
-    // ✅ FIX: store actual backend start_time reference if returned
-    let backendStartTime = null;
-
-    const ctx = document.getElementById('emotionChart').getContext('2d');
-    chart = new Chart(ctx, {
+    // Initialize Chart
+    const chartCtx = document.getElementById('emotionChart').getContext('2d');
+    chart = new Chart(chartCtx, {
         type: 'bar',
         data: {
             labels: ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral'],
@@ -145,11 +152,99 @@
         options: {responsive:true,scales:{y:{beginAtZero:true,max:100}},plugins:{legend:{display:false}}}
     });
 
+    // Initialize camera on page load
+    async function initCamera() {
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'user',
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                },
+                audio: false 
+            });
+            video.srcObject = cameraStream;
+            console.log('✅ Camera initialized');
+        } catch (error) {
+            console.error('Camera error:', error);
+            document.getElementById('video-container').innerHTML = 
+                '<div class="camera-error">❌ Camera access denied. Please allow camera access to use this feature.</div>';
+        }
+    }
+
+    // ⭐ IMPROVED: Process frame with better quality
+    async function processFrame() {
+        if (!video.videoWidth || !video.videoHeight) return;
+        
+        // ⭐ FIX 1: Maintain reasonable resolution (max 640px width)
+        const maxW = 640;
+        const scale = Math.min(1, maxW / video.videoWidth);
+        canvas.width  = Math.floor(video.videoWidth * scale);
+        canvas.height = Math.floor(video.videoHeight * scale);
+        
+        // Draw video frame to canvas
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // ⭐ FIX 2: Increase JPEG quality from 0.5 to 0.8 (80%)
+        // This preserves more facial details for better detection
+        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        try {
+            const response = await fetch('/process_frame', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData })
+            });
+            
+            const result = await response.json();
+
+            // Draw face boxes and emotion labels on video
+            const vc = document.getElementById('video-container');
+            const vid = document.getElementById('video-feed');
+            
+            // Remove previous boxes
+            document.querySelectorAll('.face-box').forEach(el => el.remove());
+
+            if (result && result.success && Array.isArray(result.faces)) {
+                const scaleX = vid && vid.clientWidth ? (vid.clientWidth / canvas.width) : 1;
+                const scaleY = vid && vid.clientHeight ? (vid.clientHeight / canvas.height) : 1;
+                
+                result.faces.forEach(f => {
+                    const box = document.createElement('div');
+                    box.className = 'face-box';
+                    box.style.left   = (f.x * scaleX) + 'px';
+                    box.style.top    = (f.y * scaleY) + 'px';
+                    box.style.width  = (f.w * scaleX) + 'px';
+                    box.style.height = (f.h * scaleY) + 'px';
+
+                    const label = document.createElement('div');
+                    label.className = 'emotion-label';
+                    label.textContent = `${f.emotion} (${(f.confidence * 100).toFixed(1)}%)`;
+                    box.appendChild(label);
+                    vc && vc.appendChild(box);
+                });
+            }
+            
+            // Update current emotion display
+            if (result.success && result.emotion) {
+                document.getElementById('current-emotion').textContent = result.emotion.emotion;
+                document.getElementById('confidence').textContent = 
+                    `Confidence: ${(result.emotion.confidence * 100).toFixed(1)}%`;
+            }
+        } catch (error) {
+            console.error('Error processing frame:', error);
+        }
+    }
+
     function showAlert(message, type = 'success') {
         const alertContainer = document.getElementById('alert-container');
         alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
         document.querySelector('.alert').style.display = 'block';
-        setTimeout(() => { document.querySelector('.alert').style.display = 'none'; }, 5000);
+        setTimeout(() => { 
+            if (document.querySelector('.alert')) {
+                document.querySelector('.alert').style.display = 'none'; 
+            }
+        }, 5000);
     }
 
     async function startSession() {
@@ -159,7 +254,6 @@
 
             if (data.status === 'success') {
                 sessionActive = true;
-                backendStartTime = new Date(); // ✅ temporarily use now, backend ref possible
                 sessionStartTime = Date.now();
                 document.getElementById('start-btn').disabled = true;
                 document.getElementById('stop-btn').disabled = false;
@@ -168,12 +262,15 @@
                 statusIndicator.className = 'status-indicator recording';
                 statusIndicator.innerHTML = '<span class="status-dot"></span> Recording';
 
+                // ⭐ FIX 3: Process frames every 2 seconds (reasonable interval)
+                processingInterval = setInterval(processFrame, 2000);
                 updateInterval = setInterval(updateStats, 1000);
+                
                 showAlert('✅ Session started successfully! Your emotions are being monitored.', 'success');
             }
         } catch (error) {
             console.error('Error starting session:', error);
-            showAlert('❌ Failed to start session. Please try again.', 'info');
+            showAlert('❌ Failed to start session. Please try again.', 'success');
         }
     }
 
@@ -191,10 +288,12 @@
                 statusIndicator.className = 'status-indicator stopped';
                 statusIndicator.innerHTML = '<span class="status-dot"></span> Not Recording';
 
+                clearInterval(processingInterval);
                 clearInterval(updateInterval);
+                
                 showAlert(
                     `✅ Session completed!<br>
-                    📊 Total emotions detected: ${data.total_emotions}<br>
+                    📊 Total emotions detected: ${data.total_emotions || 0}<br>
                     🤖 AI Summary generated<br>
                     <a href="/my_sessions" style="color: inherit; text-decoration: underline;">View your session history →</a>`,
                     'success'
@@ -202,29 +301,19 @@
             }
         } catch (error) {
             console.error('Error stopping session:', error);
-            showAlert('❌ Failed to stop session. Please try again.', 'info');
+            showAlert('❌ Failed to stop session. Please try again.', 'success');
         }
     }
 
     async function updateStats() {
         try {
-            // ✅ FIX: backend-synced timer
-            if (backendStartTime) {
-                const diff = Math.floor((Date.now() - backendStartTime.getTime()) / 1000);
+            if (sessionStartTime) {
+                const diff = Math.floor((Date.now() - sessionStartTime) / 1000);
                 const mins = Math.floor(diff / 60);
                 const secs = diff % 60;
                 document.getElementById('duration').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
             }
 
-            // Current emotion
-            const emotionResponse = await fetch('/current_emotion');
-            const emotionData = await emotionResponse.json();
-            if (emotionData.emotion && emotionData.emotion !== 'None') {
-                document.getElementById('current-emotion').textContent = emotionData.emotion;
-                document.getElementById('confidence').textContent = `Confidence: ${(emotionData.confidence * 100).toFixed(1)}%`;
-            }
-
-            // Stats update
             const statsResponse = await fetch('/session_stats');
             const statsData = await statsResponse.json();
             if (!statsData.error) {
@@ -237,22 +326,20 @@
                 ];
                 chart.update();
             }
-        } catch (error) { console.error('Error updating stats:', error); }
+        } catch (error) { 
+            console.error('Error updating stats:', error); 
+        }
     }
 
-    // Preview even when idle
+    // Preview even when idle (every 3 seconds)
     setInterval(async () => {
         if (!sessionActive) {
-            try {
-                const res = await fetch('/current_emotion');
-                const d = await res.json();
-                if (d.emotion && d.emotion !== 'None') {
-                    document.getElementById('current-emotion').textContent = d.emotion;
-                    document.getElementById('confidence').textContent = `Preview: ${(d.confidence * 100).toFixed(1)}%`;
-                }
-            } catch {}
+            processFrame();
         }
-    }, 2000);
+    }, 3000);
+
+    // Initialize camera when page loads
+    window.addEventListener('load', initCamera);
 </script>
 </body>
 </html>
