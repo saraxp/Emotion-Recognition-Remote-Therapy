@@ -95,7 +95,7 @@ def create_default_users():
         VALUES (?, ?, ?, ?, ?)
     ''', (
         'doctor',
-        generate_password_hash('doctor123'),
+        generate_password_hash('doctor123', method='bcrypt'),
         'Dr. Sarah Johnson',
         'doctor@therapy.com',
         'doctor'
@@ -114,7 +114,7 @@ def create_default_users():
             VALUES (?, ?, ?, ?, ?)
         ''', (
             username,
-            generate_password_hash(password),
+            generate_password_hash(password, method='bcrypt'),
             name,
             email,
             'patient'
@@ -166,7 +166,7 @@ def create_user(username, password, full_name, email, role):
             VALUES (?, ?, ?, ?, ?)
         ''', (
             username,
-            generate_password_hash(password),
+            generate_password_hash(password, method='bcrypt'),
             full_name,
             email,
             role

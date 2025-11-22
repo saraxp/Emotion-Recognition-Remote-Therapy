@@ -139,7 +139,7 @@ def create_default_users():
 
     doctor_data = {
         "username": "doctor",
-        "password_hash": generate_password_hash("doctor123"),
+        "password_hash": generate_password_hash("doctor123", method='bcrypt'),
         "full_name": "Dr. Sarah Johnson",
         "email": "doctor@therapy.com",
         "role": "doctor",
@@ -156,7 +156,7 @@ def create_default_users():
     for username, password, name, email in patients:
         users_ref.add({
             "username": username,
-            "password_hash": generate_password_hash(password),
+            "password_hash": generate_password_hash(password, method='bcrypt'),
             "full_name": name,
             "email": email,
             "role": "patient",
